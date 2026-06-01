@@ -13,12 +13,11 @@ import pickle
 from pathlib import Path
 from typing import Any
 
-import httpx
 from rank_bm25 import BM25Okapi
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
+from app.embeddings import embed_one
 
 
 # --------------------------------------------------------------------------- #
@@ -87,17 +86,8 @@ def rrf_fuse(
 # Dense vector search
 # --------------------------------------------------------------------------- #
 async def _embed_query(query: str) -> list[float]:
-    """Embed a single query string via the HuggingFace Inference API."""
-    url = f"https://api-inference.huggingface.co/models/{settings.hf_embedding_model}"
-    headers = {"Authorization": f"Bearer {settings.hf_api_key}"}
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        resp = await client.post(
-            url,
-            headers=headers,
-            json={"inputs": [query], "options": {"wait_for_model": True}},
-        )
-        resp.raise_for_status()
-        return resp.json()[0]
+    """Embed a single query string using the configured embedding backend."""
+    return await embed_one(query)
 
 
 async def _dense_search_db(

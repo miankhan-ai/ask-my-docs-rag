@@ -13,13 +13,13 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-import httpx
 import pypdf
 import docx as python_docx
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.embeddings import embed_texts
 from app.models import Document, DocumentStatus, Chunk
 
 
@@ -99,32 +99,22 @@ def chunk_pages(
 # --------------------------------------------------------------------------- #
 # Embedding
 # --------------------------------------------------------------------------- #
-async def _call_hf_embedding_api(texts: list[str]) -> list[list[float]]:
-    """Call the HuggingFace Inference API for a batch of embeddings."""
-    url = f"https://api-inference.huggingface.co/models/{settings.hf_embedding_model}"
-    headers = {"Authorization": f"Bearer {settings.hf_api_key}"}
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        response = await client.post(
-            url,
-            headers=headers,
-            json={"inputs": texts, "options": {"wait_for_model": True}},
-        )
-        response.raise_for_status()
-        return response.json()
-
-
 async def embed_chunks(
     chunks: list[dict[str, Any]],
     batch_size: int | None = None,
 ) -> list[list[float]]:
-    """Embed chunk texts in batches; returns a list of 1024-dim vectors."""
+    """Embed chunk texts in batches; returns a list of 1024-dim vectors.
+
+    Uses the configured embedding backend (HF Inference API or local
+    sentence-transformers) via :func:`app.embeddings.embed_texts`.
+    """
     if batch_size is None:
         batch_size = settings.embedding_batch_size
     texts = [c["text"] for c in chunks]
     embeddings: list[list[float]] = []
     for i in range(0, len(texts), batch_size):
         batch = texts[i : i + batch_size]
-        batch_embeddings = await _call_hf_embedding_api(batch)
+        batch_embeddings = await embed_texts(batch)
         embeddings.extend(batch_embeddings)
     return embeddings
 

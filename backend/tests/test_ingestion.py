@@ -1,6 +1,6 @@
 import pytest
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 from app.ingestion import parse_file, chunk_pages, embed_chunks, ingest_document
 from app.models import Document, DocumentStatus
@@ -82,13 +82,13 @@ async def test_embed_chunks_batches_correctly():
 
     # The mock returns one embedding per text it receives, so batched calls
     # accumulate to exactly len(chunks) embeddings.
-    async def fake_api(texts):
+    async def fake_embed(texts):
         return [[0.1] * 1024 for _ in texts]
 
-    with patch("app.ingestion._call_hf_embedding_api", side_effect=fake_api) as mock_api:
+    with patch("app.ingestion.embed_texts", side_effect=fake_embed) as mock_embed:
         result = await embed_chunks(chunks, batch_size=3)
 
-    assert mock_api.call_count == 2  # 5 chunks, batch_size=3 -> 2 calls
+    assert mock_embed.call_count == 2  # 5 chunks, batch_size=3 -> 2 calls
     assert len(result) == 5
     assert all(len(e) == 1024 for e in result)
 
@@ -97,10 +97,10 @@ async def test_embed_chunks_batches_correctly():
 # End-to-end ingestion
 # --------------------------------------------------------------------------- #
 async def test_ingest_document_creates_chunks(db_session):
-    fake_embeddings = [[0.1] * 1024 for _ in range(10)]
+    async def fake_embed(texts):
+        return [[0.1] * 1024 for _ in texts]
 
-    with patch("app.ingestion._call_hf_embedding_api", new_callable=AsyncMock) as mock_api:
-        mock_api.return_value = fake_embeddings
+    with patch("app.ingestion.embed_texts", side_effect=fake_embed):
         doc_id, chunk_count = await ingest_document(
             db=db_session,
             filename="sample.txt",

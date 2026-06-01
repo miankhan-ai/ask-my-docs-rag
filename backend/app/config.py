@@ -15,6 +15,13 @@ class Settings(BaseSettings):
     hf_api_key: str = ""
     hf_embedding_model: str = "BAAI/bge-large-en-v1.5"
 
+    # Embedding backend: "api" (HuggingFace Inference API) or "local"
+    # (compute on-device via sentence-transformers, no key/network needed).
+    embedding_backend: str = "api"
+    # Local sentence-transformers model. Defaults to the same BGE model so the
+    # 1024-dim vectors match the pgvector column and the API backend.
+    local_embedding_model: str = "BAAI/bge-large-en-v1.5"
+
     database_url: str = "postgresql+asyncpg://askdocs:askdocs@localhost:5432/askdocs"
 
     bm25_top_n: int = 20
