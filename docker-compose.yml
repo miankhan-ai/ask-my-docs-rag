@@ -26,6 +26,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    restart: on-failure
     volumes:
       - ./backend:/app
       - bm25_data:/app/data

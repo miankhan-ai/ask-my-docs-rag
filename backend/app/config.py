@@ -1,16 +1,21 @@
+from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
-    groq_api_key: str
+    groq_api_key: str = ""
     groq_model: str = "llama-3.3-70b-versatile"
 
-    hf_api_key: str
+    hf_api_key: str = ""
     hf_embedding_model: str = "BAAI/bge-large-en-v1.5"
 
-    database_url: str
+    database_url: str = "postgresql+asyncpg://askdocs:askdocs@localhost:5432/askdocs"
 
     bm25_top_n: int = 20
     dense_top_n: int = 20
@@ -22,4 +27,9 @@ class Settings(BaseSettings):
     bm25_index_path: str = "data/bm25_index.pkl"
 
 
-settings = Settings()
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
+
+
+settings = get_settings()
