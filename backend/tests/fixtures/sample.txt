@@ -1,0 +1,1 @@
+Hello from plain text document. It supports PDF, DOCX, Markdown, and plain text files.

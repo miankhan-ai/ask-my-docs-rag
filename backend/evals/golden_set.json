@@ -1,0 +1,32 @@
+[
+  {
+    "id": "q01",
+    "question": "What is described in the plain text document?",
+    "expected_answer": "A plain text document containing a greeting or introductory text.",
+    "expected_source_docs": ["sample.txt"]
+  },
+  {
+    "id": "q02",
+    "question": "What does the DOCX document say?",
+    "expected_answer": "It contains a greeting message.",
+    "expected_source_docs": ["sample.docx"]
+  },
+  {
+    "id": "q03",
+    "question": "What is the title of the markdown document?",
+    "expected_answer": "Hello",
+    "expected_source_docs": ["sample.md"]
+  },
+  {
+    "id": "q04",
+    "question": "What types of documents are supported for upload?",
+    "expected_answer": "PDF, DOCX, Markdown, and plain text files are supported.",
+    "expected_source_docs": []
+  },
+  {
+    "id": "q05",
+    "question": "What greeting appears in the PDF document?",
+    "expected_answer": "A greeting from the PDF document.",
+    "expected_source_docs": ["sample.pdf"]
+  }
+]

@@ -1,0 +1,72 @@
+name: Eval Suite
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: askdocs
+          POSTGRES_PASSWORD: askdocs
+          POSTGRES_DB: askdocs
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+        working-directory: ${{ github.workspace }}
+
+      - name: Create test fixtures
+        working-directory: backend
+        run: python tests/create_fixtures.py
+
+      - name: Start backend
+        working-directory: backend
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GROQ_MODEL: llama-3.3-70b-versatile
+          HF_API_KEY: ${{ secrets.HF_API_KEY }}
+          HF_EMBEDDING_MODEL: BAAI/bge-large-en-v1.5
+          DATABASE_URL: postgresql+asyncpg://askdocs:askdocs@localhost:5432/askdocs
+          BM25_INDEX_PATH: data/bm25_index.pkl
+        run: |
+          mkdir -p data
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          sleep 10
+          curl --retry 5 --retry-delay 3 http://localhost:8000/health
+
+      - name: Ingest test documents
+        working-directory: backend
+        run: |
+          for f in tests/fixtures/sample.txt tests/fixtures/sample.md tests/fixtures/sample.pdf tests/fixtures/sample.docx; do
+            curl -s -X POST http://localhost:8000/upload -F "file=@$f"
+          done
+          sleep 5
+
+      - name: Run eval suite
+        working-directory: backend
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: |
+          python -m evals.run_evals \
+            --threshold-recall 0.7 \
+            --threshold-faithfulness 0.8 \
+            --threshold-correctness 3.5
