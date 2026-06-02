@@ -1,0 +1,4 @@
+# Load-test dependency, isolated from the app's requirements because locust
+# pulls gevent (a C extension) which may lack wheels on bleeding-edge Python.
+# The pure-Python run_benchmark.py needs none of this and is the fallback.
+locust>=2.32.0

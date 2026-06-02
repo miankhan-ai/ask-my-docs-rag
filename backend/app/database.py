@@ -10,19 +10,33 @@ The module exposes:
                            and closes it when the request is done.
 """
 
+from pathlib import Path
+
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy import text
 from app.config import settings
 from app.models import Base
 
+
+def _ensure_sqlite_dir(url: str) -> None:
+    """Create the parent directory for a file-backed SQLite database."""
+    prefix = "sqlite+aiosqlite:///"
+    if url.startswith(prefix):
+        db_path = Path(url[len(prefix):])
+        if str(db_path) not in (":memory:", ""):
+            db_path.parent.mkdir(parents=True, exist_ok=True)
+
+
+_ensure_sqlite_dir(settings.database_url)
 engine = create_async_engine(settings.database_url, echo=False)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 
 async def init_db() -> None:
-    """Create the pgvector extension (if absent) and all ORM tables."""
+    """Create all ORM tables (and the pgvector extension on PostgreSQL)."""
     async with engine.begin() as conn:
-        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        if engine.dialect.name == "postgresql":
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         await conn.run_sync(Base.metadata.create_all)
 
 

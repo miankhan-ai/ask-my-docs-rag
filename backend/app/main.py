@@ -5,8 +5,12 @@ Endpoints
 ---------
 GET  /health           : Liveness probe.
 POST /upload           : Ingest a document (parse -> chunk -> embed -> store).
+GET  /documents        : List ingested documents.
+DELETE /documents/{id} : Delete a document and its chunks.
 POST /query            : Streamed, citation-grounded answer (SSE).
 GET  /retrieval-debug  : Raw BM25 / dense / RRF / reranked candidates for inspection.
+GET  /metrics          : Prometheus metrics (scrape target).
+GET  /stats            : Compact JSON metrics snapshot for the live dashboard.
 
 Startup
 -------
@@ -16,20 +20,25 @@ cross-encoder reranker into memory, and builds/loads the BM25 index.
 
 from contextlib import asynccontextmanager
 import json
-import logging
 from pathlib import Path
 from typing import AsyncIterator
 
 from fastapi import FastAPI, UploadFile, File, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.cache.factory import get_answer_cache
 from app.config import settings
 from app.database import init_db, get_db, AsyncSessionLocal
 from app.ingestion import ingest_document
 from app.models import Chunk, Document
+from app.observability.logging import configure_logging, get_logger
+from app.observability.metrics import record_cache_event, stats
+from app.observability.middleware import RequestContextMiddleware
+from app.observability.timing import TimingSink, stage_timer, stage_timer_sync
 from app.retrieval import (
     BM25IndexManager,
     hybrid_retrieve,
@@ -40,7 +49,8 @@ from app.retrieval import (
 from app.reranking import CrossEncoderReranker
 from app.generation import stream_generate
 
-logger = logging.getLogger(__name__)
+configure_logging()
+logger = get_logger(__name__)
 
 bm25_manager = BM25IndexManager()
 reranker = CrossEncoderReranker()
@@ -60,11 +70,11 @@ async def _load_bm25_index(db: AsyncSession) -> None:
     index_path = settings.bm25_index_path
     if Path(index_path).exists():
         bm25_manager.load(index_path)
-        logger.info("BM25 index loaded from disk")
+        logger.info("bm25_index_loaded", source="disk")
     else:
         count = await _refresh_bm25_from_db(db)
         if count:
-            logger.info("BM25 index built from DB (%d chunks)", count)
+            logger.info("bm25_index_built", source="db", chunks=count)
 
 
 @asynccontextmanager
@@ -77,6 +87,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Ask My Docs", lifespan=lifespan)
 
+app.add_middleware(RequestContextMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
@@ -90,6 +101,18 @@ app.add_middleware(
 async def health():
     """Liveness probe — returns 200 when the server is up."""
     return {"status": "ok"}
+
+
+@app.get("/metrics")
+async def metrics():
+    """Prometheus exposition endpoint."""
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
+@app.get("/stats")
+async def stats_snapshot():
+    """Compact JSON metrics snapshot consumed by the live dashboard."""
+    return stats.snapshot()
 
 
 @app.post("/upload")
@@ -117,6 +140,53 @@ async def upload_document(
     return {"document_id": doc_id, "chunk_count": chunk_count}
 
 
+@app.get("/documents")
+async def list_documents(db: AsyncSession = Depends(get_db)):
+    """List ingested documents with their chunk counts (for the sidebar)."""
+    from sqlalchemy import func
+
+    result = await db.execute(
+        select(
+            Document.id,
+            Document.filename,
+            Document.status,
+            func.count(Chunk.id),
+        )
+        .outerjoin(Chunk, Chunk.document_id == Document.id)
+        .group_by(Document.id)
+        .order_by(Document.id)
+    )
+    rows = result.fetchall()
+    return [
+        {
+            "document_id": row[0],
+            "filename": row[1],
+            "status": row[2].value if hasattr(row[2], "value") else row[2],
+            "chunk_count": row[3],
+        }
+        for row in rows
+    ]
+
+
+@app.delete("/documents/{document_id}")
+async def delete_document(
+    document_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a document and its chunks, then rebuild the BM25 index."""
+    doc = await db.get(Document, document_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    await db.delete(doc)  # cascade="all, delete-orphan" removes its chunks
+    await db.commit()
+
+    async with AsyncSessionLocal() as refresh_db:
+        await _refresh_bm25_from_db(refresh_db)
+
+    return {"document_id": document_id, "deleted": True}
+
+
 async def _fetch_chunk_map(db: AsyncSession, chunk_ids: list[int]) -> dict[int, dict]:
     """Fetch chunk rows + source filename keyed by chunk id."""
     result = await db.execute(
@@ -136,6 +206,31 @@ async def _fetch_chunk_map(db: AsyncSession, chunk_ids: list[int]) -> dict[int, 
     }
 
 
+def _sse(payload: dict) -> str:
+    """Format one dict as an SSE ``data:`` frame."""
+    return "data: " + json.dumps(payload) + "\n\n"
+
+
+async def _replay_cached_answer(cached: dict) -> AsyncIterator[str]:
+    """Stream a cached answer as SSE: the full text as one token, then ``done``.
+
+    The cached payload carries its original citations, so a cache hit can never
+    produce citations that don't match the answer.
+    """
+    yield _sse({"type": "token", "content": cached["answer"]})
+    done = {
+        "type": "done",
+        "citations": cached["citations"],
+        "citation_warning": cached["citation_warning"],
+        "timings": {},
+        "prompt_tokens": cached.get("prompt_tokens", 0),
+        "completion_tokens": cached.get("completion_tokens", 0),
+        "cost_usd": cached.get("cost_usd", 0.0),
+        "cached": True,
+    }
+    yield _sse(done)
+
+
 @app.post("/query")
 async def query_documents(
     payload: dict,
@@ -146,6 +241,26 @@ async def query_documents(
     if not question:
         raise HTTPException(status_code=400, detail="question is required")
 
+    timings = TimingSink()
+    answer_cache = get_answer_cache()
+
+    # Embed the query once (reused for both the answer cache and dense search).
+    async with stage_timer("embed_query", timings):
+        query_embedding = await _embed_query(question)
+
+    # Semantic answer cache: return a cached answer for near-identical queries.
+    hit = await answer_cache.get_nearest(
+        query_embedding, settings.answer_cache_similarity_threshold
+    )
+    if hit is not None:
+        record_cache_event("answer", hit=True)
+        cached_payload, _score = hit
+        return StreamingResponse(
+            _replay_cached_answer(cached_payload), media_type="text/event-stream"
+        )
+    if settings.answer_cache_enabled:
+        record_cache_event("answer", hit=False)
+
     rrf_results = await hybrid_retrieve(
         query=question,
         db=db,
@@ -154,27 +269,62 @@ async def query_documents(
         dense_top_n=settings.dense_top_n,
         rrf_k=settings.rrf_k,
         top_n=20,
+        query_embedding=query_embedding,
+        timings=timings,
     )
 
     chunk_ids = [r["chunk_id"] for r in rrf_results]
     if not chunk_ids:
         async def empty_stream() -> AsyncIterator[str]:
-            yield "data: " + json.dumps(
-                {"type": "done", "citations": [], "citation_warning": False}
-            ) + "\n\n"
+            yield _sse(
+                {
+                    "type": "done",
+                    "citations": [],
+                    "citation_warning": False,
+                    "timings": timings.as_dict(),
+                    "prompt_tokens": 0,
+                    "completion_tokens": 0,
+                    "cost_usd": 0.0,
+                    "cached": False,
+                }
+            )
 
         return StreamingResponse(empty_stream(), media_type="text/event-stream")
 
     chunk_map = await _fetch_chunk_map(db, chunk_ids)
     candidates = [chunk_map[cid] for cid in chunk_ids if cid in chunk_map]
 
-    reranked = reranker.rerank(
-        query=question, candidates=candidates, top_k=settings.reranker_top_k
-    )
+    with stage_timer_sync("rerank", timings):
+        reranked = reranker.rerank(
+            query=question, candidates=candidates, top_k=settings.reranker_top_k
+        )
 
     async def event_stream() -> AsyncIterator[str]:
-        async for event in stream_generate(question=question, chunks=reranked):
+        answer_parts: list[str] = []
+        last_done: dict | None = None
+        async for event in stream_generate(
+            question=question, chunks=reranked, timings=timings
+        ):
+            parsed = json.loads(event)
+            if parsed["type"] == "token":
+                answer_parts.append(parsed["content"])
+            elif parsed["type"] == "done":
+                last_done = parsed
             yield f"data: {event}\n\n"
+
+        # Store the completed answer (with its citations) in the semantic cache.
+        if settings.answer_cache_enabled and last_done is not None:
+            await answer_cache.add_vector(
+                query_embedding,
+                {
+                    "answer": "".join(answer_parts),
+                    "citations": last_done["citations"],
+                    "citation_warning": last_done["citation_warning"],
+                    "prompt_tokens": last_done.get("prompt_tokens", 0),
+                    "completion_tokens": last_done.get("completion_tokens", 0),
+                    "cost_usd": last_done.get("cost_usd", 0.0),
+                },
+            )
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 

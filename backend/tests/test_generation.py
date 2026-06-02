@@ -88,3 +88,41 @@ async def test_stream_generate_yields_tokens_then_done():
     assert len(done_events) == 1
     assert done_events[0]["citation_warning"] is False
     assert len(done_events[0]["citations"]) == 1
+    # Observability fields are present (additive, even without provider usage).
+    assert "timings" in done_events[0]
+    assert "cost_usd" in done_events[0]
+    assert done_events[0]["cached"] is False
+
+
+async def test_stream_generate_reports_token_usage_and_cost():
+    from app.observability.timing import TimingSink
+
+    chunks = [{"id": 1, "text": "Paris is the capital.", "source": "geo.pdf", "page_number": 1}]
+
+    tok = MagicMock()
+    tok.choices = [MagicMock()]
+    tok.choices[0].delta.content = "Paris [1]."
+    tok.usage = None
+
+    usage_chunk = MagicMock()
+    usage_chunk.choices = []
+    usage_chunk.usage = MagicMock(prompt_tokens=120, completion_tokens=8)
+
+    async def mock_stream(*args, **kwargs):
+        for c in [tok, usage_chunk]:
+            yield c
+
+    sink = TimingSink()
+    with patch("app.generation._groq_stream", mock_stream):
+        events = []
+        async for event in stream_generate(
+            question="Capital?", chunks=chunks, timings=sink
+        ):
+            events.append(json.loads(event))
+
+    done = next(e for e in events if e["type"] == "done")
+    assert done["prompt_tokens"] == 120
+    assert done["completion_tokens"] == 8
+    assert done["cost_usd"] > 0
+    # llm timings recorded into the sink
+    assert "llm_total" in done["timings"]

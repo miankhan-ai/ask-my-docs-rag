@@ -34,6 +34,9 @@ frontend/*.tsbuildinfo
 *.swp
 *.swo
 
+# Claude Code local state
+.claude/
+
 # OS
 .DS_Store
 Thumbs.db
@@ -43,3 +46,4 @@ Thumbs.db
 htmlcov/
 .coverage
 coverage.xml
+.playwright-mcp/

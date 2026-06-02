@@ -135,8 +135,12 @@ All configuration is via environment variables — see `.env.example`. No keys a
 |---|---|---|
 | `GET` | `/health` | Liveness probe |
 | `POST` | `/upload` | Multipart upload; returns `{document_id, chunk_count}` |
+| `GET` | `/documents` | List ingested documents with chunk counts |
+| `DELETE` | `/documents/{id}` | Delete a document and its chunks |
 | `POST` | `/query` | Streamed SSE answer with citations |
 | `GET` | `/retrieval-debug?query=...` | Raw BM25 / dense / RRF / reranked candidates with scores |
+| `GET` | `/metrics` | Prometheus metrics (scrape target) |
+| `GET` | `/stats` | Compact JSON metrics snapshot for the live dashboard |
 
 ### SSE Response Shape
 
@@ -144,11 +148,97 @@ All configuration is via environment variables — see `.env.example`. No keys a
 // token events during streaming
 {"type": "token", "content": "..."}
 
-// final event
+// final event — carries citations plus per-query observability data
 {"type": "done",
  "citations": [{"id": 1, "text": "...", "source": "doc.pdf", "page": 3}],
- "citation_warning": false}
+ "citation_warning": false,
+ "timings": {"embed_query": 12.1, "bm25_search": 3.4, "dense_search": 8.0,
+             "rrf_fuse": 0.1, "rerank": 41.2, "llm_ttft": 380.5, "llm_total": 2100.7},
+ "prompt_tokens": 412, "completion_tokens": 76, "cost_usd": 0.000167,
+ "cached": false}
 ```
+
+## Observability & Performance
+
+The app is instrumented end-to-end so you can see *where* time and money go, and a
+caching layer turns that visibility into a measurable win.
+
+### What's instrumented
+
+- **Structured JSON logging** (`structlog`) with a per-request correlation ID
+  (`X-Request-ID`, generated if absent) bound via `contextvars` so every log line in a
+  request carries it. Wired once in `app/observability/middleware.py` — business logic
+  stays clean.
+- **Per-stage latency** for every pipeline stage (`embed_query`, `bm25_search`,
+  `dense_search`, `rrf_fuse`, `rerank`, `llm_ttft`, `llm_total`) via a single
+  `stage_timer` context manager (`app/observability/timing.py`).
+- **Prometheus metrics** at `GET /metrics`: request counts, in-flight gauge, per-stage
+  latency histograms, LLM TTFT/total, token counters, cost counter, and cache hit/miss.
+- **Token & cost accounting**: prompt/completion tokens and an estimated USD cost (from a
+  configurable price table) are computed per query and surfaced in the `done` SSE event.
+- **Live in-app dashboard**: the **Dashboard** tab polls `GET /stats` every ~1.5s and
+  renders four live panel groups — per-stage + p50/p95 latency, tokens & cost, cache hit
+  ratio, and throughput/errors (recharts). No Grafana required; runs fully locally.
+- **Per-answer breakdown**: the chat **retrieval-debug** panel also shows a latency-bar +
+  token/cost breakdown for that specific answer, and a ⚡ badge when it was cache-served.
+
+### Caching
+
+Two config-driven caches (`app/cache/`), zero-infra by default (in-process LRU+TTL),
+with an optional Redis backend for the embedding cache:
+
+- **Embedding cache** (on by default) — keyed by `sha256(text)`+model; skips recomputing
+  embeddings for repeated text (queries *and* document chunks).
+- **Semantic answer cache** (off by default) — if a new query is within a cosine
+  `answer_cache_similarity_threshold` (default 0.95) of a previously answered query, the
+  cached answer is replayed **with its original citations** (grounding can't drift). Off by
+  default so eval gating stays deterministic.
+
+Enable both locally:
+
+```bash
+EMBEDDING_CACHE_ENABLED=true ANSWER_CACHE_ENABLED=true \
+  uvicorn app.main:app --port 8000
+```
+
+### Benchmark & load test
+
+`benchmarks/run_benchmark.py` drives the live `/query` API and reports p50/p95/p99
+latency, throughput, cost/query, and cache hit rate, with a cache OFF-vs-ON comparison
+table:
+
+```bash
+# caches OFF
+python -m benchmarks.run_benchmark --phase off --out off.json
+# restart with caches enabled, then:
+python -m benchmarks.run_benchmark --phase on  --out on.json
+python -m benchmarks.run_benchmark --compare off.json on.json
+```
+
+Representative result (single repeated query, warm answer cache):
+
+| Metric | Value |
+|---|---|
+| p50 latency (cached) | ~5 ms |
+| p95 latency (1 cold miss) | ~2.7 s |
+| cache hit rate | 80% |
+
+i.e. a cached query returns in **~5 ms vs ~2.7 s** for a full pipeline run — a ~500× speedup,
+with cost/query dropping to $0 on hits.
+
+A `locust` load test (`benchmarks/locustfile.py`, isolated in
+`benchmarks/requirements-bench.txt`) is also provided:
+
+```bash
+pip install -r benchmarks/requirements-bench.txt
+locust -f benchmarks/locustfile.py --host http://localhost:8000 \
+       --headless --users 20 --spawn-rate 5 --run-time 2m
+```
+
+> **Note:** the installed `groq==0.11.0` SDK doesn't accept `stream_options`, so exact
+> provider token usage isn't returned; the app falls back to a word-count heuristic for
+> token/cost. Upgrading `groq` to ≥1.x enables exact usage — the code already requests it
+> and falls back gracefully.
 
 ## CI
 

@@ -11,12 +11,15 @@ the pgvector column width), so the choice is transparent to callers. Use
 ``embed_texts`` for batches and ``embed_one`` for a single string.
 """
 
+import hashlib
 from functools import lru_cache
 from typing import Any
 
 import httpx
 
+from app.cache.factory import get_embedding_cache
 from app.config import settings
+from app.observability.metrics import record_cache_event
 
 
 # --------------------------------------------------------------------------- #
@@ -64,11 +67,53 @@ async def _embed_via_local(texts: list[str]) -> list[list[float]]:
 # --------------------------------------------------------------------------- #
 # Public dispatch
 # --------------------------------------------------------------------------- #
-async def embed_texts(texts: list[str]) -> list[list[float]]:
-    """Embed a batch of texts using the configured backend."""
+def _embedding_cache_key(text: str) -> str:
+    """Cache key for one text under the active model (model in key avoids
+    collisions when the embedding model is swapped)."""
+    model = (
+        settings.local_embedding_model
+        if settings.embedding_backend == "local"
+        else settings.hf_embedding_model
+    )
+    digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    return f"emb:{model}:{digest}"
+
+
+async def _embed_uncached(texts: list[str]) -> list[list[float]]:
+    """Embed without touching the cache (raw backend dispatch)."""
     if settings.embedding_backend == "local":
         return await _embed_via_local(texts)
     return await _embed_via_api(texts)
+
+
+async def embed_texts(texts: list[str]) -> list[list[float]]:
+    """Embed a batch of texts, serving hits from the embedding cache.
+
+    Only cache misses are sent to the backend; results are written back and the
+    output preserves input order. Hit/miss counters feed the metrics + dashboard.
+    """
+    cache = get_embedding_cache()
+    keys = [_embedding_cache_key(t) for t in texts]
+    results: list[list[float] | None] = [None] * len(texts)
+
+    miss_indices: list[int] = []
+    for i, key in enumerate(keys):
+        cached = await cache.get(key)
+        if cached is not None:
+            results[i] = cached
+            record_cache_event("embedding", hit=True)
+        else:
+            record_cache_event("embedding", hit=False)
+            miss_indices.append(i)
+
+    if miss_indices:
+        miss_texts = [texts[i] for i in miss_indices]
+        computed = await _embed_uncached(miss_texts)
+        for idx, vec in zip(miss_indices, computed):
+            results[idx] = vec
+            await cache.set(keys[idx], vec)
+
+    return [r for r in results if r is not None]
 
 
 async def embed_one(text: str) -> list[float]:

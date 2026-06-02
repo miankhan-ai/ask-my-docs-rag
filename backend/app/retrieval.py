@@ -9,15 +9,18 @@ hybrid_retrieve  : Run both searches in parallel and fuse the results.
 """
 
 import asyncio
+import math
 import pickle
 from pathlib import Path
 from typing import Any
 
 from rank_bm25 import BM25Okapi
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.embeddings import embed_one
+from app.models import Chunk
+from app.observability.timing import TimingSink, stage_timer, stage_timer_sync
 
 
 # --------------------------------------------------------------------------- #
@@ -90,7 +93,17 @@ async def _embed_query(query: str) -> list[float]:
     return await embed_one(query)
 
 
-async def _dense_search_db(
+def _cosine(a: list[float], b: list[float]) -> float:
+    """Cosine similarity between two equal-length vectors."""
+    dot = sum(x * y for x, y in zip(a, b))
+    na = math.sqrt(sum(x * x for x in a))
+    nb = math.sqrt(sum(y * y for y in b))
+    if na == 0.0 or nb == 0.0:
+        return 0.0
+    return dot / (na * nb)
+
+
+async def _dense_search_pgvector(
     db: AsyncSession,
     query_embedding: list[float],
     top_n: int,
@@ -113,6 +126,40 @@ async def _dense_search_db(
     return [{"chunk_id": row[0], "score": float(row[1])} for row in rows]
 
 
+async def _dense_search_python(
+    db: AsyncSession,
+    query_embedding: list[float],
+    top_n: int,
+) -> list[dict[str, Any]]:
+    """Brute-force cosine search in Python (used for the SQLite backend).
+
+    Loads all stored embeddings and ranks them against the query vector. Fine
+    for local / small-corpus testing; PostgreSQL + pgvector handles scale.
+    """
+    result = await db.execute(
+        select(Chunk.id, Chunk.embedding).where(Chunk.embedding.isnot(None))
+    )
+    rows = result.fetchall()
+    scored = [
+        {"chunk_id": cid, "score": _cosine(query_embedding, emb)}
+        for cid, emb in rows
+        if emb is not None
+    ]
+    scored.sort(key=lambda x: x["score"], reverse=True)
+    return scored[:top_n]
+
+
+async def _dense_search_db(
+    db: AsyncSession,
+    query_embedding: list[float],
+    top_n: int,
+) -> list[dict[str, Any]]:
+    """Dense vector search, dispatched by the active database dialect."""
+    if db.bind.dialect.name == "postgresql":
+        return await _dense_search_pgvector(db, query_embedding, top_n)
+    return await _dense_search_python(db, query_embedding, top_n)
+
+
 async def hybrid_retrieve(
     query: str,
     db: AsyncSession,
@@ -121,11 +168,28 @@ async def hybrid_retrieve(
     dense_top_n: int,
     rrf_k: int,
     top_n: int,
+    query_embedding: list[float] | None = None,
+    timings: TimingSink | None = None,
 ) -> list[dict[str, Any]]:
-    """Run BM25 + dense search in parallel and fuse with RRF."""
-    query_embedding = await _embed_query(query)
-    bm25_results, dense_results = await asyncio.gather(
-        asyncio.to_thread(bm25_manager.search, query, bm25_top_n),
-        _dense_search_db(db, query_embedding, dense_top_n),
-    )
-    return rrf_fuse(bm25_results, dense_results, k=rrf_k, top_n=top_n)
+    """Run BM25 + dense search in parallel and fuse with RRF.
+
+    ``query_embedding`` may be supplied by the caller to avoid re-embedding the
+    query (the API computes it once for the semantic answer cache). Each stage
+    reports its latency into the optional ``timings`` sink.
+    """
+    if query_embedding is None:
+        async with stage_timer("embed_query", timings):
+            query_embedding = await _embed_query(query)
+
+    async def _timed_bm25() -> list[dict[str, Any]]:
+        async with stage_timer("bm25_search", timings):
+            return await asyncio.to_thread(bm25_manager.search, query, bm25_top_n)
+
+    async def _timed_dense() -> list[dict[str, Any]]:
+        async with stage_timer("dense_search", timings):
+            return await _dense_search_db(db, query_embedding, dense_top_n)
+
+    bm25_results, dense_results = await asyncio.gather(_timed_bm25(), _timed_dense())
+
+    with stage_timer_sync("rrf_fuse", timings):
+        return rrf_fuse(bm25_results, dense_results, k=rrf_k, top_n=top_n)
