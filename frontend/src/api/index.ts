@@ -1,3 +1,13 @@
+// Base URL for the backend API.
+// - In local dev, leave VITE_API_BASE unset: requests hit relative paths and
+//   the Vite dev-server proxy forwards them to http://localhost:8000.
+// - In production (Hostinger static hosting), set VITE_API_BASE to the deployed
+//   backend URL (e.g. the Hugging Face Space) so the static site can reach it.
+const API_BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '')
+
+/** Prefix a backend path with the configured API base. */
+export const apiUrl = (path: string): string => `${API_BASE}${path}`
+
 export interface UploadResult {
   document_id: number
   chunk_count: number
@@ -51,24 +61,24 @@ export interface DocumentInfo {
 export async function uploadDocument(file: File): Promise<UploadResult> {
   const form = new FormData()
   form.append('file', file)
-  const res = await fetch('/upload', { method: 'POST', body: form })
+  const res = await fetch(apiUrl('/upload'), { method: 'POST', body: form })
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
 
 export async function listDocuments(): Promise<DocumentInfo[]> {
-  const res = await fetch('/documents')
+  const res = await fetch(apiUrl('/documents'))
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
 
 export async function deleteDocument(documentId: number): Promise<void> {
-  const res = await fetch(`/documents/${documentId}`, { method: 'DELETE' })
+  const res = await fetch(apiUrl(`/documents/${documentId}`), { method: 'DELETE' })
   if (!res.ok) throw new Error(await res.text())
 }
 
 export async function* streamQuery(question: string): AsyncGenerator<StreamEvent> {
-  const res = await fetch('/query', {
+  const res = await fetch(apiUrl('/query'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ question }),
@@ -92,7 +102,7 @@ export async function* streamQuery(question: string): AsyncGenerator<StreamEvent
 }
 
 export async function getRetrievalDebug(query: string): Promise<RetrievalDebugResult> {
-  const res = await fetch(`/retrieval-debug?query=${encodeURIComponent(query)}`)
+  const res = await fetch(apiUrl(`/retrieval-debug?query=${encodeURIComponent(query)}`))
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
@@ -117,7 +127,7 @@ export interface Stats {
 }
 
 export async function getStats(): Promise<Stats> {
-  const res = await fetch('/stats')
+  const res = await fetch(apiUrl('/stats'))
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }

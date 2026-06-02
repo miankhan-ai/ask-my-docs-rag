@@ -53,6 +53,17 @@ class Settings(BaseSettings):
     embedding_batch_size: int = 100
     bm25_index_path: str = "data/bm25_index.pkl"
 
+    # --- CORS ---
+    # Comma-separated list of allowed browser origins for the API. Defaults to
+    # the local Vite dev server; in production set CORS_ALLOW_ORIGINS to the
+    # deployed frontend origin(s), e.g. "https://askmydocs.miankhan.me".
+    cors_allow_origins: str = "http://localhost:5173"
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        """Parse the comma-separated CORS origins into a list."""
+        return [o.strip() for o in self.cors_allow_origins.split(",") if o.strip()]
+
     # --- Observability ---
     log_level: str = "INFO"
     metrics_enabled: bool = True
