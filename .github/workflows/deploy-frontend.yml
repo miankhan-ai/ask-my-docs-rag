@@ -49,12 +49,16 @@ jobs:
           VITE_API_BASE: ${{ vars.VITE_API_BASE }}
         run: npm run build
 
-      - name: Deploy to Hostinger via FTP
+      - name: Deploy to Hostinger via FTPS
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
+          # Hostinger requires explicit FTPS (TLS over the standard FTP port 21).
+          protocol: ftps
+          port: 21
+          timeout: 60000
           local-dir: ./frontend/dist/
           server-dir: ./public_html/askmydocs/
           dangerous-clean-slate: false
