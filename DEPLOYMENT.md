@@ -10,6 +10,15 @@ Ask My Docs is a full-stack app split into two deployable parts:
 The frontend (static) calls the backend (HF Space) over HTTPS. This guide walks
 through both, in order.
 
+## Status
+
+- ✅ **Backend LIVE:** https://miankhanai-ask-my-docs-backend.hf.space
+  (Space: https://huggingface.co/spaces/miankhanai/ask-my-docs-backend) —
+  `CORS_ALLOW_ORIGINS` is set. **Still TODO:** add your `GROQ_API_KEY` secret in
+  the Space settings so generation works (see §1.3).
+- ⏳ **Frontend:** GitHub Action + `VITE_API_BASE` variable are configured. **Still
+  TODO:** add the 3 Hostinger FTP secrets to GitHub, then run the deploy (see §2).
+
 ---
 
 ## Part 1 — Deploy the backend to Hugging Face Spaces
@@ -57,10 +66,10 @@ Restart the Space after setting these.
 Your API is now at:
 
 ```
-https://<your-username>-ask-my-docs-backend.hf.space
+https://miankhanai-ask-my-docs-backend.hf.space
 ```
 
-Test it: open `https://<your-username>-ask-my-docs-backend.hf.space/health` —
+Test it: open `https://miankhanai-ask-my-docs-backend.hf.space/health` —
 you should see `{"status":"ok"}`.
 
 > **Free-tier note:** the Space filesystem is ephemeral (uploads + DB reset on
@@ -87,7 +96,7 @@ builds the site and uploads it to Hostinger via FTP on every push.
      `/domains/miankhan.me/public_html/askmydocs/`)
 2. In GitHub **repo → Settings → Secrets and variables → Actions**, add:
    - Secret **`FTP_SERVER`**, **`FTP_USERNAME`**, **`FTP_PASSWORD`**
-   - Variable **`VITE_API_BASE`** = `https://<your-username>-ask-my-docs-backend.hf.space`
+   - Variable **`VITE_API_BASE`** = `https://miankhanai-ask-my-docs-backend.hf.space`
 3. In the workflow, set `server-dir:` to your subdomain's web root.
 4. Push to `master` (or run the workflow manually from the **Actions** tab).
    It builds and uploads `frontend/dist/` to Hostinger.
