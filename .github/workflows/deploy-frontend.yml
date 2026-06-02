@@ -59,6 +59,8 @@ jobs:
           protocol: ftps
           port: 21
           timeout: 60000
+          # The FTP account's home directory IS public_html, so server-dir is
+          # relative to it — do NOT prefix public_html again (that nests it).
           local-dir: ./frontend/dist/
-          server-dir: ./public_html/askmydocs/
+          server-dir: askmydocs/
           dangerous-clean-slate: false
