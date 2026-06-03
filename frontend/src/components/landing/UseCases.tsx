@@ -41,17 +41,17 @@ export function UseCases() {
             subtitle="Anywhere accuracy and source transparency matter more than speed."
           />
         </motion.div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {CASES.map((c, i) => {
             const Icon = c.icon
             return (
               <motion.div
                 key={c.title}
                 {...fadeUpDelay(i)}
-                className="group p-6 rounded-2xl border border-gray-100 hover:border-primary-200 hover:bg-primary-50/30 transition-all"
+                className="group p-4 sm:p-6 rounded-2xl border border-gray-100 hover:border-primary-200 hover:bg-primary-50/30 transition-all"
               >
-                <div className="w-10 h-10 rounded-xl bg-primary-50 group-hover:bg-primary-100 flex items-center justify-center mb-4 transition-colors">
-                  <Icon className="h-5 w-5 text-primary-600" />
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-primary-50 group-hover:bg-primary-100 flex items-center justify-center mb-3 sm:mb-4 transition-colors">
+                  <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary-600" />
                 </div>
                 <h3 className="font-semibold text-gray-900 mb-2">{c.title}</h3>
                 <p className="text-sm text-gray-500 leading-relaxed">{c.description}</p>

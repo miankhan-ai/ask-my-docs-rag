@@ -37,7 +37,7 @@ export function HowItWorks() {
             title="From document to cited answer in seconds"
           />
         </motion.div>
-        <div className="grid md:grid-cols-3 gap-8 relative">
+        <div className="grid md:grid-cols-3 gap-6 md:gap-8 relative">
           {/* Connecting line (desktop) */}
           <div className="hidden md:block absolute top-8 left-[17%] right-[17%] h-px bg-gradient-to-r from-primary-200 via-accent-200 to-primary-200" />
 
@@ -49,15 +49,15 @@ export function HowItWorks() {
                 {...fadeUpDelay(i)}
                 className="flex flex-col items-center text-center"
               >
-                <div className="relative mb-5">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center shadow-lift">
-                    <Icon className="h-7 w-7 text-white" />
+                <div className="relative mb-4 sm:mb-5">
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center shadow-lift">
+                    <Icon className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
                   </div>
                   <span className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-white border-2 border-primary-200 text-xs font-bold text-primary-600 flex items-center justify-center">
                     {i + 1}
                   </span>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">{step.title}</h3>
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">{step.title}</h3>
                 <p className="text-sm text-gray-500 leading-relaxed max-w-xs">{step.description}</p>
               </motion.div>
             )

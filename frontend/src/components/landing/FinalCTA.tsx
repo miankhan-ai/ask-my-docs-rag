@@ -9,7 +9,7 @@ export function FinalCTA() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <motion.div
           {...fadeUp}
-          className="relative bg-gradient-to-br from-primary-600 to-accent-600 rounded-3xl px-8 py-14 overflow-hidden"
+          className="relative bg-gradient-to-br from-primary-600 to-accent-600 rounded-3xl px-4 sm:px-8 py-8 sm:py-14 overflow-hidden"
         >
           {/* Background decoration */}
           <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/5 rounded-full blur-3xl" />
@@ -19,7 +19,7 @@ export function FinalCTA() {
             <h2 className="text-3xl sm:text-4xl font-bold text-white tracking-tight mb-4">
               Start chatting with your documents today
             </h2>
-            <p className="text-primary-100 text-lg mb-8 max-w-xl mx-auto">
+            <p className="text-primary-100 text-base sm:text-lg mb-6 sm:mb-8 max-w-xl mx-auto">
               Free account. No credit card required.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">

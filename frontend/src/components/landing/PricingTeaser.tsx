@@ -71,12 +71,12 @@ export function PricingTeaser() {
             subtitle="Start for free. Scale when you're ready."
           />
         </motion.div>
-        <div className="grid md:grid-cols-3 gap-6 items-start">
+        <div className="grid md:grid-cols-3 gap-4 sm:gap-6 items-start">
           {TIERS.map((tier, i) => (
             <motion.div
               key={tier.name}
               {...fadeUpDelay(i)}
-              className={`bg-white rounded-2xl border p-7 flex flex-col ${
+              className={`bg-white rounded-2xl border p-4 sm:p-7 flex flex-col ${
                 tier.popular
                   ? 'border-primary-300 shadow-glow ring-2 ring-primary-200'
                   : 'border-gray-200 shadow-soft'

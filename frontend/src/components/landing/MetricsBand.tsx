@@ -15,7 +15,7 @@ export function MetricsBand() {
       className="py-16 sm:py-20 bg-gradient-to-br from-primary-600 to-accent-600"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <motion.div {...fadeUp} className="text-center mb-10">
+        <motion.div {...fadeUp} className="text-center mb-6 sm:mb-10">
           <p className="text-primary-200 text-xs font-semibold uppercase tracking-widest mb-2">
             Measurable results
           </p>
@@ -23,7 +23,7 @@ export function MetricsBand() {
             Performance you can measure
           </h2>
         </motion.div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-8">
           {METRICS.map((m, i) => (
             <motion.div
               key={m.label}

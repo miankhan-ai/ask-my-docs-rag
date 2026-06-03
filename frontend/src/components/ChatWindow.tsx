@@ -50,7 +50,7 @@ function AssistantTurn({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-start gap-2.5 self-start max-w-[85%]">
+      <div className="flex items-start gap-2.5 self-start max-w-[92%] sm:max-w-[85%]">
         {/* Assistant avatar */}
         <div className="shrink-0 w-7 h-7 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center mt-0.5">
           <Sparkles className="h-3.5 w-3.5 text-white" />
@@ -70,19 +70,19 @@ function AssistantTurn({
       </div>
 
       {message.citationWarning && (
-        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-700 ml-9">
+        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-700 ml-8 sm:ml-9">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           Some citations could not be verified against retrieved passages.
         </div>
       )}
       {message.error && (
-        <div className="flex items-center gap-2 bg-rose-50 border border-rose-200 rounded-xl p-3 text-sm text-rose-600 ml-9">
+        <div className="flex items-center gap-2 bg-rose-50 border border-rose-200 rounded-xl p-3 text-sm text-rose-600 ml-8 sm:ml-9">
           <AlertCircle className="h-4 w-4 shrink-0" />
           {message.error}
         </div>
       )}
       {message.tokens && !message.isStreaming && (
-        <div className="ml-9">
+        <div className="ml-8 sm:ml-9">
           <DebugView
             query={message.query}
             timings={message.timings}
@@ -117,7 +117,7 @@ export function ChatWindow({ conversationId }: { conversationId: string | null }
   return (
     <div className="flex-1 flex flex-col h-full relative min-w-0">
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-4 scrollbar-slim">
+      <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-5 flex flex-col gap-4 scrollbar-slim">
         {!conversationId ? (
           <div className="flex flex-col items-center justify-center flex-1 gap-4 text-center mt-12">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center">
@@ -159,8 +159,8 @@ export function ChatWindow({ conversationId }: { conversationId: string | null }
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2 }}
-                className="bg-primary-600 text-white rounded-2xl rounded-br-md px-4 py-2.5
-                  self-end max-w-[85%] text-sm leading-relaxed shadow-soft"
+                className="bg-primary-600 text-white rounded-2xl rounded-br-md px-3 sm:px-4 py-2 sm:py-2.5
+                  self-end max-w-[92%] sm:max-w-[85%] text-sm leading-relaxed shadow-soft"
               >
                 {message.content}
               </motion.div>
@@ -183,13 +183,13 @@ export function ChatWindow({ conversationId }: { conversationId: string | null }
       </div>
 
       {/* Input row */}
-      <div className="px-4 py-3 border-t border-gray-100 bg-white/80 backdrop-blur flex gap-2">
+      <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-t border-gray-100 bg-white/80 backdrop-blur flex gap-2">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && submit()}
-          placeholder="Ask a question about your documents…"
-          className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm
+          placeholder="Ask a question…"
+          className="flex-1 border border-gray-200 rounded-xl px-3 sm:px-4 py-2 text-sm
             focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-400
             disabled:opacity-60"
           disabled={isStreaming || !conversationId}
@@ -197,21 +197,16 @@ export function ChatWindow({ conversationId }: { conversationId: string | null }
         <button
           onClick={submit}
           disabled={isStreaming || !input.trim() || !conversationId}
-          className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-600 text-white
+          className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-primary-600 text-white
             rounded-xl text-sm font-medium hover:bg-primary-700 disabled:opacity-40
             disabled:cursor-not-allowed transition-colors shadow-soft shrink-0"
         >
           {isStreaming ? (
-            <>
-              <span className="inline-block w-3 h-3 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-              Thinking…
-            </>
+            <span className="inline-block w-3 h-3 rounded-full border-2 border-white/40 border-t-white animate-spin" />
           ) : (
-            <>
-              <Send className="h-3.5 w-3.5" />
-              Ask
-            </>
+            <Send className="h-3.5 w-3.5" />
           )}
+          <span className="hidden sm:inline">{isStreaming ? 'Thinking…' : 'Ask'}</span>
         </button>
       </div>
 

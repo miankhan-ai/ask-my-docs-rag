@@ -15,22 +15,22 @@ export function AppLayout() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-      <header className="flex items-center justify-between px-5 h-14 border-b border-gray-100 bg-white/90 backdrop-blur sticky top-0 z-30 shrink-0">
+      <header className="flex items-center justify-between px-3 sm:px-5 h-12 sm:h-14 border-b border-gray-100 bg-white/90 backdrop-blur sticky top-0 z-30 shrink-0">
         <Link
           to="/"
           className="flex items-center gap-2 text-gray-900 hover:opacity-80 transition-opacity"
         >
-          <Logo size={28} />
-          <span className="font-semibold tracking-tight text-sm">Ask My Docs</span>
+          <Logo size={24} />
+          <span className="font-semibold tracking-tight text-sm hidden sm:inline">Ask My Docs</span>
         </Link>
-        <nav className="flex items-center gap-1">
+        <nav className="flex items-center gap-0.5 sm:gap-1">
           <NavLink to="/app" end className={navLinkClass}>
             <MessageSquare className="h-3.5 w-3.5" />
-            Chat
+            <span className="hidden xs:inline">Chat</span>
           </NavLink>
           <NavLink to="/app/dashboard" className={navLinkClass}>
             <LayoutDashboard className="h-3.5 w-3.5" />
-            Dashboard
+            <span className="hidden xs:inline">Dashboard</span>
           </NavLink>
         </nav>
         <UserMenu />

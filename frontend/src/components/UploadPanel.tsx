@@ -4,7 +4,7 @@ import { Upload, File, Trash2, Loader2, FolderOpen } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useDocuments } from '../hooks/useDocuments'
 
-export function UploadPanel() {
+export function UploadPanel({ hideHeading }: { hideHeading?: boolean } = {}) {
   const { documents, uploading, uploadError, deletingId, upload, remove } = useDocuments()
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -20,12 +20,14 @@ export function UploadPanel() {
   }
 
   return (
-    <div className="w-72 shrink-0 p-4 border-r border-gray-100 bg-white flex flex-col gap-4">
+    <div className="w-full p-4 border-r border-gray-100 bg-white flex flex-col gap-4 h-full overflow-hidden">
       {/* Heading */}
-      <div className="flex items-center gap-2">
-        <FolderOpen className="h-4 w-4 text-primary-500" />
-        <h2 className="font-semibold text-sm text-gray-800">Documents</h2>
-      </div>
+      {!hideHeading && (
+        <div className="flex items-center gap-2">
+          <FolderOpen className="h-4 w-4 text-primary-500" />
+          <h2 className="font-semibold text-sm text-gray-800">Documents</h2>
+        </div>
+      )}
 
       {/* The file input is a SIBLING of the dropzone (not a child) to prevent
           inputRef.click() from bubbling back into the div's onClick. */}

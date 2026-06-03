@@ -27,17 +27,17 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-8">
       <div className="w-full max-w-sm">
-        <div className="flex flex-col items-center mb-8 gap-2">
-          <Logo size={40} />
-          <h1 className="text-2xl font-bold text-gray-900">Sign in</h1>
+        <div className="flex flex-col items-center mb-6 sm:mb-8 gap-2">
+          <Logo size={36} />
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Sign in</h1>
           <p className="text-sm text-gray-500">to Ask My Docs</p>
         </div>
 
         <a
           href={apiUrl('/auth/google')}
-          className="w-full flex items-center justify-center gap-3 border border-gray-300 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors mb-6"
+          className="w-full flex items-center justify-center gap-3 border border-gray-300 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors mb-4 sm:mb-6"
         >
           <svg className="h-4 w-4" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -94,7 +94,7 @@ export function LoginPage() {
           </button>
         </form>
 
-        <p className="text-center text-sm text-gray-500 mt-6">
+        <p className="text-center text-sm text-gray-500 mt-4 sm:mt-6">
           No account?{' '}
           <Link to="/register" className="text-primary-600 hover:underline font-medium">
             Create one

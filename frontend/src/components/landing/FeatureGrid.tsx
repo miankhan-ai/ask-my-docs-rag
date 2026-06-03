@@ -75,10 +75,10 @@ function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
   return (
     <motion.div
       {...fadeUpDelay(index)}
-      className="bg-white rounded-2xl border border-gray-100 shadow-soft p-6 hover:shadow-card hover:border-primary-100 transition-all"
+      className="bg-white rounded-2xl border border-gray-100 shadow-soft p-4 sm:p-6 hover:shadow-card hover:border-primary-100 transition-all"
     >
-      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center mb-4">
-        <Icon className="h-5 w-5 text-white" />
+      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center mb-3 sm:mb-4">
+        <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
       </div>
       <h3 className="font-semibold text-gray-900 mb-2">{feature.title}</h3>
       <p className="text-sm text-gray-500 leading-relaxed">{feature.description}</p>
@@ -97,7 +97,7 @@ export function FeatureGrid() {
             subtitle="Not just a chatbot wrapper. A complete, observable, quality-gated retrieval pipeline with every component you need to ship with confidence."
           />
         </motion.div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
           {FEATURES.map((f, i) => (
             <FeatureCard key={f.title} feature={f} index={i} />
           ))}
