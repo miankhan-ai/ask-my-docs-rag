@@ -1,5 +1,8 @@
 """Google OAuth2 flow helpers."""
+import hashlib
+import hmac
 import secrets
+import time
 import httpx
 
 from app.config import settings
@@ -7,6 +10,35 @@ from app.config import settings
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
+
+_STATE_TTL = 600  # 10 minutes
+
+
+def generate_oauth_state() -> str:
+    """Generate a self-contained HMAC-signed state — no server session needed."""
+    nonce = secrets.token_urlsafe(16)
+    ts = str(int(time.time()))
+    payload = f"{nonce}.{ts}"
+    sig = hmac.new(settings.jwt_secret_key.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    return f"{payload}.{sig}"
+
+
+def verify_oauth_state(state: str) -> bool:
+    """Verify the HMAC signature and TTL of the state parameter."""
+    try:
+        parts = state.rsplit(".", 1)
+        if len(parts) != 2:
+            return False
+        payload, sig = parts
+        expected = hmac.new(settings.jwt_secret_key.encode(), payload.encode(), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(sig, expected):
+            return False
+        ts = int(payload.split(".")[1])
+        if time.time() - ts > _STATE_TTL:
+            return False
+        return True
+    except Exception:
+        return False
 
 
 def build_google_redirect_url(state: str) -> str:
@@ -21,10 +53,6 @@ def build_google_redirect_url(state: str) -> str:
     }
     query = "&".join(f"{k}={v}" for k, v in params.items())
     return f"{GOOGLE_AUTH_URL}?{query}"
-
-
-def generate_oauth_state() -> str:
-    return secrets.token_urlsafe(32)
 
 
 async def exchange_code_for_tokens(code: str) -> dict:

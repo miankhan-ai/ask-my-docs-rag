@@ -10,6 +10,7 @@ from app.auth.oauth import (
     exchange_code_for_tokens,
     fetch_google_userinfo,
     generate_oauth_state,
+    verify_oauth_state,
 )
 from app.auth.schemas import LoginRequest, RegisterRequest, TokenResponse, UserResponse
 from app.auth.service import (
@@ -100,9 +101,8 @@ async def login(body: LoginRequest, response: Response, db: AsyncSession = Depen
 
 
 @router.get("/google")
-async def google_login(request: Request):
+async def google_login():
     state = generate_oauth_state()
-    request.session["oauth_state"] = state
     url = build_google_redirect_url(state)
     return RedirectResponse(url)
 
@@ -111,12 +111,10 @@ async def google_login(request: Request):
 async def google_callback(
     code: str,
     state: str,
-    request: Request,
     response: Response,
     db: AsyncSession = Depends(get_db),
 ):
-    expected_state = request.session.pop("oauth_state", None)
-    if expected_state != state:
+    if not verify_oauth_state(state):
         raise HTTPException(status_code=400, detail="Invalid OAuth state")
 
     google_tokens = await exchange_code_for_tokens(code)
