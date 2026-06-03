@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
-import { LogOut, ChevronDown } from 'lucide-react'
+import { LogOut, ChevronDown, LogIn } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 export function UserMenu() {
-  const { user, logout } = useAuth()
+  const { user, isLoading, logout } = useAuth()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -16,6 +16,19 @@ export function UserMenu() {
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
+
+  // Show sign-in button when not logged in (and not still loading)
+  if (!user && !isLoading) {
+    return (
+      <Link
+        to="/login"
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium bg-primary-600 text-white hover:bg-primary-700 transition-colors"
+      >
+        <LogIn className="h-3.5 w-3.5" />
+        <span className="hidden sm:inline">Sign in</span>
+      </Link>
+    )
+  }
 
   if (!user) return null
 

@@ -16,7 +16,6 @@ import { RegisterPage } from './pages/RegisterPage'
 import { AuthCallbackPage } from './pages/AuthCallbackPage'
 import { AppLayout } from './app/AppLayout'
 import { ChatLayout } from './app/ChatLayout'
-import { ProtectedRoute } from './components/ProtectedRoute'
 
 const Dashboard = lazy(() =>
   import('./components/Dashboard').then((m) => ({ default: m.Dashboard })),
@@ -49,15 +48,8 @@ export default function App() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
-      {/* Protected app */}
-      <Route
-        path="/app"
-        element={
-          <ProtectedRoute>
-            <AppLayout />
-          </ProtectedRoute>
-        }
-      >
+      {/* App — open to all, sign-in unlocks persistence */}
+      <Route path="/app" element={<AppLayout />}>
         <Route index element={<ChatLayout />} />
         <Route
           path="dashboard"

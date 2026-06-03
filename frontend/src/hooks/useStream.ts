@@ -36,6 +36,8 @@ export type ChatMessage = UserMessage | AssistantMessage
 let _tempId = 0
 const tempId = () => `temp-${_tempId++}`
 
+const isGuestId = (id: string | null) => id?.startsWith('guest-') ?? false
+
 export function useStream(conversationId: string | null) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const abortRef = useRef(false)
@@ -43,6 +45,8 @@ export function useStream(conversationId: string | null) {
 
   useEffect(() => {
     if (!conversationId) { setMessages([]); return }
+    // Guest sessions have no server-side history
+    if (isGuestId(conversationId)) { setMessages([]); isFirstMessage.current = true; return }
     isFirstMessage.current = false
     getConversation(conversationId).then((conv) => {
       isFirstMessage.current = conv.messages.length === 0
@@ -81,14 +85,15 @@ export function useStream(conversationId: string | null) {
       if (!conversationId) return
       abortRef.current = false
 
-      const savedUser = await postMessage(conversationId, 'user', question, null)
+      const isGuest = isGuestId(conversationId)
+      const userMsgId = isGuest ? tempId() : (await postMessage(conversationId, 'user', question, null)).id
 
       if (isFirstMessage.current) {
         isFirstMessage.current = false
-        renameConversation(conversationId, question.slice(0, 60)).catch(() => {})
+        if (!isGuest) renameConversation(conversationId, question.slice(0, 60)).catch(() => {})
       }
 
-      const userMsg: UserMessage = { role: 'user', id: savedUser.id, content: question }
+      const userMsg: UserMessage = { role: 'user', id: userMsgId, content: question }
       const assistantTempId = tempId()
       const assistantMsg: AssistantMessage = {
         role: 'assistant', id: assistantTempId, query: question,
@@ -125,13 +130,15 @@ export function useStream(conversationId: string | null) {
             })
           }
         }
-        const savedAssistant = await postMessage(
-          conversationId, 'assistant', finalTokens,
-          finalCitations.length ? finalCitations : null
-        )
-        setMessages((prev) =>
-          prev.map((m) => (m.role === 'assistant' && m.id === assistantTempId ? { ...m, id: savedAssistant.id } : m)),
-        )
+        if (!isGuest) {
+          const savedAssistant = await postMessage(
+            conversationId, 'assistant', finalTokens,
+            finalCitations.length ? finalCitations : null
+          )
+          setMessages((prev) =>
+            prev.map((m) => (m.role === 'assistant' && m.id === assistantTempId ? { ...m, id: savedAssistant.id } : m)),
+          )
+        }
       } catch (err) {
         patchAssistant(assistantTempId, { isStreaming: false, error: String(err) })
       }

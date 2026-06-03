@@ -32,7 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import get_current_user, get_optional_user
 from app.auth.router import router as auth_router
 from app.conversations.router import router as conversations_router
 from app.cache.factory import get_answer_cache
@@ -128,7 +128,7 @@ async def stats_snapshot():
 async def upload_document(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User | None = Depends(get_optional_user),
 ):
     """Ingest an uploaded document and refresh the BM25 index."""
     allowed = {".pdf", ".docx", ".md", ".txt"}
@@ -142,7 +142,7 @@ async def upload_document(
         filename=file.filename,
         filetype=suffix,
         file_bytes=file_bytes,
-        user_id=user.id,
+        user_id=user.id if user else None,
     )
 
     async with AsyncSessionLocal() as refresh_db:
@@ -154,12 +154,12 @@ async def upload_document(
 @app.get("/documents")
 async def list_documents(
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User | None = Depends(get_optional_user),
 ):
     """List ingested documents with their chunk counts (for the sidebar)."""
     from sqlalchemy import func
 
-    result = await db.execute(
+    query = (
         select(
             Document.id,
             Document.filename,
@@ -167,10 +167,15 @@ async def list_documents(
             func.count(Chunk.id),
         )
         .outerjoin(Chunk, Chunk.document_id == Document.id)
-        .where(Document.user_id == user.id)
         .group_by(Document.id)
         .order_by(Document.id)
     )
+    if user:
+        query = query.where(Document.user_id == user.id)
+    else:
+        query = query.where(Document.user_id.is_(None))
+
+    result = await db.execute(query)
     rows = result.fetchall()
     return [
         {
@@ -187,13 +192,15 @@ async def list_documents(
 async def delete_document(
     document_id: int,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User | None = Depends(get_optional_user),
 ):
     """Delete a document and its chunks, then rebuild the BM25 index."""
     doc = await db.get(Document, document_id)
     if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
-    if doc.user_id != user.id:
+    if user and doc.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this document")
+    if not user and doc.user_id is not None:
         raise HTTPException(status_code=403, detail="Not authorized to delete this document")
 
     await db.delete(doc)  # cascade="all, delete-orphan" removes its chunks
@@ -260,7 +267,7 @@ async def _replay_cached_answer(cached: dict) -> AsyncIterator[str]:
 async def query_documents(
     payload: dict,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User | None = Depends(get_optional_user),
 ):
     """Retrieve, rerank, and stream a citation-grounded answer (SSE)."""
     question = payload.get("question", "").strip()
@@ -317,7 +324,7 @@ async def query_documents(
 
         return StreamingResponse(empty_stream(), media_type="text/event-stream")
 
-    chunk_map = await _fetch_chunk_map(db, chunk_ids, user_id=user.id)
+    chunk_map = await _fetch_chunk_map(db, chunk_ids, user_id=user.id if user else None)
     candidates = [chunk_map[cid] for cid in chunk_ids if cid in chunk_map]
 
     with stage_timer_sync("rerank", timings):
@@ -359,7 +366,7 @@ async def query_documents(
 async def retrieval_debug(
     query: str,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User | None = Depends(get_optional_user),
 ):
     """Return raw BM25, dense, RRF-fused, and reranked candidates with scores."""
     query_embedding = await _embed_query(query)
@@ -375,7 +382,7 @@ async def retrieval_debug(
     )
 
     chunk_ids = [r["chunk_id"] for r in fused]
-    chunk_map = await _fetch_chunk_map(db, chunk_ids, user_id=user.id) if chunk_ids else {}
+    chunk_map = await _fetch_chunk_map(db, chunk_ids, user_id=user.id if user else None) if chunk_ids else {}
 
     candidates_with_text = [
         {

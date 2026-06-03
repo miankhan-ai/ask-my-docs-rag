@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, MessageSquare, Pencil, Trash2, Check, X } from 'lucide-react'
+import { Plus, MessageSquare, Pencil, Trash2, Check, X, LogIn } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import {
   listConversations,
   createConversation,
@@ -7,6 +8,7 @@ import {
   deleteConversation,
   type ConversationInfo,
 } from '../api'
+import { useAuth } from '../hooks/useAuth'
 import { cn } from './ui/cn'
 
 interface Props {
@@ -16,20 +18,33 @@ interface Props {
 }
 
 export function ConversationSidebar({ activeId, onSelect, onNew }: Props) {
+  const { user } = useAuth()
   const [conversations, setConversations] = useState<ConversationInfo[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editTitle, setEditTitle] = useState('')
 
   const load = useCallback(async () => {
+    if (!user) return
     try {
       const list = await listConversations()
       setConversations(list)
     } catch {}
-  }, [])
+  }, [user])
 
   useEffect(() => { load() }, [load])
 
   const handleNew = async () => {
+    if (!user) {
+      // Guest: create a local-only "conversation" with a temp id
+      const tempConv: ConversationInfo = {
+        id: `guest-${Date.now()}`,
+        title: 'New Conversation',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+      onNew(tempConv)
+      return
+    }
     try {
       const conv = await createConversation('New Conversation')
       setConversations((prev) => [conv, ...prev])
@@ -114,10 +129,26 @@ export function ConversationSidebar({ activeId, onSelect, onNew }: Props) {
             )}
           </div>
         ))}
-        {conversations.length === 0 && (
+        {user && conversations.length === 0 && (
           <p className="text-xs text-gray-400 text-center py-6">No conversations yet</p>
         )}
+        {!user && (
+          <p className="text-xs text-gray-400 text-center py-6">Start a new chat below</p>
+        )}
       </div>
+
+      {/* Guest sign-in prompt */}
+      {!user && (
+        <div className="px-3 py-3 border-t border-gray-100">
+          <Link
+            to="/login"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-primary-200 text-primary-600 text-xs font-medium hover:bg-primary-50 transition-colors"
+          >
+            <LogIn className="h-3.5 w-3.5" />
+            Sign in to save history
+          </Link>
+        </div>
+      )}
     </div>
   )
 }
