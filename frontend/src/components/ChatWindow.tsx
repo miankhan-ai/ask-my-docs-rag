@@ -97,8 +97,8 @@ function AssistantTurn({
   )
 }
 
-export function ChatWindow() {
-  const { messages, isStreaming, ask } = useStream()
+export function ChatWindow({ conversationId }: { conversationId: string | null }) {
+  const { messages, isStreaming, ask } = useStream(conversationId)
   const [input, setInput] = useState('')
   const [activeCitation, setActiveCitation] = useState<Citation | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -118,7 +118,14 @@ export function ChatWindow() {
     <div className="flex-1 flex flex-col h-full relative min-w-0">
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-4 scrollbar-slim">
-        {messages.length === 0 && (
+        {!conversationId ? (
+          <div className="flex flex-col items-center justify-center flex-1 gap-4 text-center mt-12">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center">
+              <Sparkles className="h-7 w-7 text-white" />
+            </div>
+            <p className="text-sm text-gray-400">Select a conversation or start a new one</p>
+          </div>
+        ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center flex-1 gap-6 text-center mt-12">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center">
               <Sparkles className="h-7 w-7 text-white" />
@@ -142,7 +149,7 @@ export function ChatWindow() {
               ))}
             </div>
           </div>
-        )}
+        ) : null}
 
         <AnimatePresence initial={false}>
           {messages.map((message) =>
@@ -185,11 +192,11 @@ export function ChatWindow() {
           className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm
             focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-400
             disabled:opacity-60"
-          disabled={isStreaming}
+          disabled={isStreaming || !conversationId}
         />
         <button
           onClick={submit}
-          disabled={isStreaming || !input.trim()}
+          disabled={isStreaming || !input.trim() || !conversationId}
           className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-600 text-white
             rounded-xl text-sm font-medium hover:bg-primary-700 disabled:opacity-40
             disabled:cursor-not-allowed transition-colors shadow-soft shrink-0"
