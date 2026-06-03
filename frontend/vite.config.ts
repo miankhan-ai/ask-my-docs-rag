@@ -5,6 +5,8 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
+      '/auth': 'http://localhost:8000',
+      '/conversations': 'http://localhost:8000',
       '/upload': 'http://localhost:8000',
       '/query': 'http://localhost:8000',
       '/retrieval-debug': 'http://localhost:8000',
