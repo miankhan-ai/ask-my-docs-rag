@@ -20,16 +20,26 @@ export function FinalCTA() {
               Start chatting with your documents today
             </h2>
             <p className="text-primary-100 text-lg mb-8 max-w-xl mx-auto">
-              No signup. No credit card. Deploy with Docker in under a minute.
+              Free account. No credit card required.
             </p>
-            <LinkButton
-              to="/app"
-              variant="secondary"
-              size="lg"
-              className="bg-white text-primary-700 hover:bg-primary-50 shadow-lift"
-            >
-              Launch App — it's free <ArrowRight className="h-4 w-4" />
-            </LinkButton>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <LinkButton
+                to="/register"
+                variant="secondary"
+                size="lg"
+                className="bg-white text-primary-700 hover:bg-primary-50 shadow-lift"
+              >
+                Create free account <ArrowRight className="h-4 w-4" />
+              </LinkButton>
+              <LinkButton
+                to="/login"
+                variant="secondary"
+                size="lg"
+                className="bg-white/10 text-white border border-white/30 hover:bg-white/20"
+              >
+                Sign in
+              </LinkButton>
+            </div>
           </div>
         </motion.div>
       </div>

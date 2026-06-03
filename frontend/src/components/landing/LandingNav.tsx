@@ -38,11 +38,11 @@ export function LandingNav() {
 
         {/* CTA */}
         <div className="hidden md:flex items-center gap-3">
-          <LinkButton to="/contact" variant="secondary" size="sm">
-            Contact
+          <LinkButton to="/login" variant="secondary" size="sm">
+            Sign in
           </LinkButton>
-          <LinkButton to="/app" size="sm">
-            Launch App →
+          <LinkButton to="/register" size="sm">
+            Get started →
           </LinkButton>
         </div>
 
@@ -69,8 +69,8 @@ export function LandingNav() {
               {l.label}
             </Link>
           ))}
-          <LinkButton to="/app" size="sm" className="mt-2">
-            Launch App →
+          <LinkButton to="/register" size="sm" className="mt-2">
+            Get started →
           </LinkButton>
         </div>
       )}

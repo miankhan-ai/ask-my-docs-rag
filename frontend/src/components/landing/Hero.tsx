@@ -48,8 +48,8 @@ export function Hero() {
               {...heroEntranceDelay(3)}
               className="mt-8 flex flex-col sm:flex-row gap-3 justify-center lg:justify-start"
             >
-              <LinkButton to="/app" size="lg">
-                Try it free <ArrowRight className="h-4 w-4" />
+              <LinkButton to="/register" size="lg">
+                Get started free <ArrowRight className="h-4 w-4" />
               </LinkButton>
               <a
                 href="#how"
@@ -63,7 +63,7 @@ export function Hero() {
               {...heroEntranceDelay(4)}
               className="mt-5 text-xs text-gray-400"
             >
-              No signup required · Self-hostable · Open observability
+              Free account · Self-hostable · Open observability
             </motion.p>
           </div>
 
