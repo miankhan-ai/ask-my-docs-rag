@@ -127,9 +127,10 @@ async def ingest_document(
     filename: str,
     filetype: str,
     file_bytes: bytes,
+    user_id: str | None = None,
 ) -> tuple[int, int]:
     """Parse, chunk, embed and store a document. Returns ``(document_id, chunk_count)``."""
-    doc = Document(filename=filename, filetype=filetype, status=DocumentStatus.processing)
+    doc = Document(filename=filename, filetype=filetype, status=DocumentStatus.processing, user_id=user_id)
     db.add(doc)
     await db.flush()
 
