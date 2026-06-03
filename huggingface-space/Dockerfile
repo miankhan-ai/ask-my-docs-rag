@@ -28,6 +28,8 @@ ENV HF_HOME=/home/user/.cache/huggingface \
     EMBEDDING_BACKEND=local \
     DB_BACKEND=sqlite \
     CORS_ALLOW_ORIGINS=https://askmydocs.miankhan.me \
+    GOOGLE_REDIRECT_URI=https://miankhanai-ask-my-docs-backend.hf.space/auth/google/callback \
+    FRONTEND_AUTH_CALLBACK_URL=https://askmydocs.miankhan.me/auth/callback \
     PORT=7860
 
 WORKDIR /home/user/app
