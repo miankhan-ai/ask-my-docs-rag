@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { ArrowLeft } from 'lucide-react'
 import { Logo } from '../components/ui/Logo'
 import { useAuth } from '../hooks/useAuth'
 import { apiUrl } from '../api'
@@ -33,6 +34,13 @@ export function RegisterPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-8">
       <div className="w-full max-w-sm">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors mb-6"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </Link>
         <div className="flex flex-col items-center mb-6 sm:mb-8 gap-2">
           <Logo size={36} />
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Create account</h1>
