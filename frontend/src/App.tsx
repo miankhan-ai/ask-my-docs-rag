@@ -11,10 +11,13 @@ import { AboutPage } from './pages/AboutPage'
 import { BlogPage } from './pages/BlogPage'
 import { CareersPage } from './pages/CareersPage'
 import { ContactPage } from './pages/ContactPage'
+import { LoginPage } from './pages/LoginPage'
+import { RegisterPage } from './pages/RegisterPage'
+import { AuthCallbackPage } from './pages/AuthCallbackPage'
 import { AppLayout } from './app/AppLayout'
 import { ChatLayout } from './app/ChatLayout'
+import { ProtectedRoute } from './components/ProtectedRoute'
 
-// Lazy-load Dashboard to keep recharts out of the landing + chat bundles.
 const Dashboard = lazy(() =>
   import('./components/Dashboard').then((m) => ({ default: m.Dashboard })),
 )
@@ -28,7 +31,7 @@ const DashboardFallback = (
 export default function App() {
   return (
     <Routes>
-      {/* Marketing pages */}
+      {/* Marketing */}
       <Route path="/" element={<LandingPage />} />
       <Route path="/features" element={<FeaturesPage />} />
       <Route path="/how-it-works" element={<HowItWorksPage />} />
@@ -41,8 +44,20 @@ export default function App() {
       <Route path="/careers" element={<CareersPage />} />
       <Route path="/contact" element={<ContactPage />} />
 
-      {/* Product app */}
-      <Route path="/app" element={<AppLayout />}>
+      {/* Auth */}
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/auth/callback" element={<AuthCallbackPage />} />
+
+      {/* Protected app */}
+      <Route
+        path="/app"
+        element={
+          <ProtectedRoute>
+            <AppLayout />
+          </ProtectedRoute>
+        }
+      >
         <Route index element={<ChatLayout />} />
         <Route
           path="dashboard"
@@ -50,7 +65,6 @@ export default function App() {
         />
       </Route>
 
-      {/* Catch-all */}
       <Route path="*" element={<LandingPage />} />
     </Routes>
   )
