@@ -90,6 +90,19 @@ class Settings(BaseSettings):
     answer_cache_max_size: int = 1000
     answer_cache_similarity_threshold: float = 0.95
 
+    # --- Auth ---
+    jwt_secret_key: str = "CHANGE_ME_IN_PRODUCTION"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 15
+    refresh_token_expire_days: int = 7
+
+    # Google OAuth2
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    google_redirect_uri: str = "http://localhost:8000/auth/google/callback"
+    # After OAuth, backend redirects here with ?token=<access_token>
+    frontend_auth_callback_url: str = "http://localhost:5173/auth/callback"
+
 
 @lru_cache
 def get_settings() -> Settings:
