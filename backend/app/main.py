@@ -30,6 +30,9 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from starlette.middleware.sessions import SessionMiddleware
+
+from app.auth.router import router as auth_router
 from app.cache.factory import get_answer_cache
 from app.config import settings
 from app.database import init_db, get_db, AsyncSessionLocal
@@ -87,6 +90,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Ask My Docs", lifespan=lifespan)
 
+app.add_middleware(SessionMiddleware, secret_key=settings.jwt_secret_key, max_age=300)
 app.add_middleware(RequestContextMiddleware)
 app.add_middleware(
     CORSMiddleware,
@@ -95,6 +99,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(auth_router)
 
 
 @app.get("/health")
