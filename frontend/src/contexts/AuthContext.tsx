@@ -18,6 +18,7 @@ interface AuthContextValue extends AuthState {
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
+  setUserFromToken: (token: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -61,8 +62,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState({ user: null, isLoading: false })
   }, [])
 
+  const setUserFromToken = useCallback(async (token: string) => {
+    setAccessToken(token)
+    const user = await apiMe()
+    setState({ user, isLoading: false })
+  }, [])
+
   return (
-    <AuthContext.Provider value={{ ...state, login, register, logout }}>
+    <AuthContext.Provider value={{ ...state, login, register, logout, setUserFromToken }}>
       {children}
     </AuthContext.Provider>
   )
