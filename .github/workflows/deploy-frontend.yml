@@ -58,7 +58,7 @@ jobs:
           # Hostinger requires explicit FTPS (TLS over the standard FTP port 21).
           protocol: ftps
           port: 21
-          timeout: 60000
+          timeout: 120000
           # The FTP account's home directory IS public_html, so server-dir is
           # relative to it — do NOT prefix public_html again (that nests it).
           local-dir: ./frontend/dist/
