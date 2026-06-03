@@ -23,10 +23,11 @@ ENV HOME=/home/user \
 ENV HF_HOME=/home/user/.cache/huggingface \
     SENTENCE_TRANSFORMERS_HOME=/home/user/.cache/sentence-transformers \
     TRANSFORMERS_CACHE=/home/user/.cache/huggingface \
-    DATABASE_URL_OVERRIDE=sqlite+aiosqlite:////tmp/askdocs.db \
-    BM25_INDEX_PATH=/tmp/bm25_index.pkl \
+    DATABASE_URL_OVERRIDE=sqlite+aiosqlite:////data/askdocs.db \
+    BM25_INDEX_PATH=/data/bm25_index.pkl \
     EMBEDDING_BACKEND=local \
     DB_BACKEND=sqlite \
+    CORS_ALLOW_ORIGINS=https://askmydocs.miankhan.me \
     PORT=7860
 
 WORKDIR /home/user/app
