@@ -1,6 +1,7 @@
 import { NavLink, Outlet, Link } from 'react-router-dom'
 import { MessageSquare, LayoutDashboard } from 'lucide-react'
 import { Logo } from '../components/ui/Logo'
+import { UserMenu } from '../components/UserMenu'
 import { cn } from '../components/ui/cn'
 
 export function AppLayout() {
@@ -32,6 +33,7 @@ export function AppLayout() {
             Dashboard
           </NavLink>
         </nav>
+        <UserMenu />
       </header>
       <div className="flex-1 min-h-0">
         <Outlet />
